@@ -1,317 +1,196 @@
 // src/screens/HomeScreen.js
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Animated,
   StatusBar,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Orientation from 'react-native-orientation-locker';
-import { Images } from '../../assets/images/images';
-
-const FRUIT_PREVIEW = ['Apple', 'Banana', 'Grape', 'Carrot'];
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import firestore from '@react-native-firebase/firestore';
+import { Color } from '../../assets/images/theme';
+import HomeTopBar from '../components/home/HomeTopBar';
+import AccuracyTrendsCard from '../components/home/AccuracyTrendsCard';
+import FruitSelector from '../components/home/FruitSelector';
+import RecentSessionCard from '../components/home/RecentSessionCard';
+import {
+  mapSessionFromFirestore,
+  buildChartDataFromSessions,
+  getAccuracyAverage,
+} from '../utils/sessionData';
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  useFocusEffect(() => {
-    Orientation.lockToPortrait();
-  });
-  // selected target fruit (default Carrot)
-  const [targetFruit, setTargetFruit] = useState('Carrot');
 
-  // Button press scale animation
+  useFocusEffect(
+    useCallback(() => {
+      Orientation.lockToPortrait();
+    }, []),
+  );
+
+  const [targetFruit, setTargetFruit] = useState('Carrot');
   const buttonScale = useRef(new Animated.Value(1)).current;
 
-  const handlePressIn = () => {
+  const [sessions, setSessions] = useState([]);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+
+  useEffect(() => {
+    const unsub = firestore()
+      .collection('sessions')
+      .orderBy('createdAt', 'desc')
+      .limit(7)
+      .onSnapshot(
+        snap => {
+          setSessions(
+            snap.docs.map(doc => mapSessionFromFirestore(doc.id, doc.data())),
+          );
+          setLoadingSessions(false);
+        },
+        err => {
+          console.log('sessions error', err);
+          setLoadingSessions(false);
+        },
+      );
+    return unsub;
+  }, []);
+
+  const avgAccuracy = useMemo(() => getAccuracyAverage(sessions, 0), [sessions]);
+
+  const chartData = useMemo(
+    () => buildChartDataFromSessions(sessions, Color.primary),
+    [sessions],
+  );
+
+  const handlePressIn = () =>
     Animated.spring(buttonScale, {
-      toValue: 0.94,
+      toValue: 0.96,
       useNativeDriver: true,
       speed: 30,
     }).start();
-  };
 
-  const handlePressOut = () => {
+  const handlePressOut = () =>
     Animated.spring(buttonScale, {
       toValue: 1,
       useNativeDriver: true,
-      friction: 4,
+      friction: 5,
     }).start();
-  };
 
   const handleStart = () => {
-    // Lock landscape BEFORE navigating so the game screen opens in landscape
     Orientation.lockToLandscape();
     navigation.navigate('Game', { targetFruit });
   };
 
-  const handleSelectFruit = fruit => {
-    setTargetFruit(fruit);
-  };
+  const handleViewMore = () => {
+    navigation.navigate('Tabs', { screen: 'History' });
+  }
 
   return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor="#060b1a" barStyle="light-content" />
-      {/* Background grid decoration */}
-      <View style={styles.bgGrid} pointerEvents="none" />
+    <View style={styles.root}>
+      <StatusBar backgroundColor={Color.bg} barStyle="dark-content" />
 
-      {/* Hero */}
-      <View style={styles.heroSection}>
-        <View style={styles.logoRing}>
-          <Text style={styles.logoEmoji}>🎯</Text>
-        </View>
-        <Text style={styles.appTitle}>Fruit Focus</Text>
-        <Text style={styles.appTagline}>
-          Train your attention · Tap the right fruit
-        </Text>
-      </View>
+      <HomeTopBar />
 
-      {/* Fruit preview strip (also acts as selector) */}
-      <View style={styles.fruitStrip}>
-        {FRUIT_PREVIEW.map(fruit => {
-          const isTarget = fruit === targetFruit;
-          return (
-            <TouchableOpacity
-              key={fruit}
-              activeOpacity={0.8}
-              onPress={() => handleSelectFruit(fruit)}
-              style={[
-                styles.fruitChip,
-                isTarget && styles.fruitChipTarget,
-              ]}>
-              <Image
-                source={Images[fruit]}
-                style={styles.fruitChipImage}
-                resizeMode="contain"
-              />
-              <Text
-                style={[
-                  styles.fruitChipLabel,
-                  isTarget && styles.fruitChipLabelTarget,
-                ]}>
-                {fruit}
-              </Text>
-              {isTarget && (
-                <View style={styles.targetPill}>
-                  <Text style={styles.targetPillText}>TARGET</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
 
-      {/* How to play */}
-      <View style={styles.rulesCard}>
-        <Text style={styles.rulesTitle}>How to play</Text>
-        <View style={styles.ruleRow}>
-          <Text style={styles.ruleIcon}>👁</Text>
-          <Text style={styles.ruleText}>
-            Watch fruits appear on screen every second
-          </Text>
-        </View>
-        <View style={styles.ruleRow}>
-          <Text style={styles.ruleIcon}>👆</Text>
-          <Text style={styles.ruleText}>
-            Only tap the{' '}
-            <Text style={styles.accent}>{targetFruit}</Text> — ignore everything
-            else
-          </Text>
-        </View>
-        <View style={styles.ruleRow}>
-          <Text style={styles.ruleIcon}>⏱</Text>
-          <Text style={styles.ruleText}>
-            Game runs for 2 minutes — score as high as you can!
-          </Text>
-        </View>
-      </View>
-
-      {/* Start button */}
-      <Animated.View
-        style={[{ transform: [{ scale: buttonScale }] }, styles.buttonWrap]}>
-        <TouchableOpacity
-          activeOpacity={1}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          onPress={handleStart}
-          style={styles.startButton}>
-          <Text style={styles.startButtonText}>Start Game</Text>
-          <View style={styles.playIcon}>
-            <Text style={{ fontSize: 14 }}>▶</Text>
+        {/* Page header */}
+        <View style={styles.pageHeaderRow}>
+          <View style={styles.headerContent}>
+            <Text style={styles.pageTitle}>Learning History</Text>
+            <Text style={styles.pageSubtitle}>
+              Review Little Explorer's recent activity and track their
+              progress over time.
+            </Text>
           </View>
+        </View>
+
+        <AccuracyTrendsCard chartData={chartData} avgAccuracy={avgAccuracy} />
+
+        <FruitSelector targetFruit={targetFruit} onSelect={setTargetFruit} />
+
+        {/* Recent Sessions */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Recent Sessions</Text>
+        </View>
+
+        {loadingSessions ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color={Color.primary} />
+          </View>
+        ) : sessions.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Ionicons name="analytics-outline" size={32} color={Color.outlineVariant} />
+            <Text style={styles.emptyText}>Play a game to see your progress here.</Text>
+          </View>
+        ) : (
+          sessions.slice(0, 4).map(s => <RecentSessionCard key={s.id} session={s} />)
+        )}
+
+        <TouchableOpacity style={styles.loadMoreBtn} activeOpacity={0.9} onPress={handleViewMore}>
+          <Text style={styles.loadMoreText}>View More Sessions</Text>
         </TouchableOpacity>
-      </Animated.View>
+
+        {/* Start Game CTA */}
+        <Animated.View style={[styles.ctaWrapper, { transform: [{ scale: buttonScale }] }]}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            onPress={handleStart}
+            style={styles.startBtn}>
+            <Text style={styles.startBtnText}>Start Game</Text>
+            <View style={styles.startBtnIcon}>
+              <Ionicons name="play" size={16} color="#ffffff" />
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#060b1a',
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 36,
-  },
-  bgGrid: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.03,
-    backgroundColor: 'transparent',
-  },
+  root: { flex: 1, backgroundColor: Color.bg },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 12 },
+  pageHeaderRow: { marginBottom: 18 },
+  headerContent: { flex: 1 },
+  pageTitle: { fontFamily: 'PlusJakartaSans-Bold', fontSize: 28, color: Color.primary },
+  pageSubtitle: { marginTop: 4, fontFamily: 'PlusJakartaSans-Regular', fontSize: 14, color: Color.onSurfaceVariant },
+  sectionTitle: { marginTop: 24, marginBottom: 12, fontFamily: 'PlusJakartaSans-Bold', fontSize: 18, color: Color.onSurface },
 
-  // Hero
-  heroSection: {
+  sectionHeaderRow: { marginTop: 2 },
+  loadingBox: { marginTop: 20, paddingVertical: 20, alignItems: 'center' },
+  emptyBox: {
+    marginTop: 12,
+    borderRadius: 20,
+    padding: 20,
+    backgroundColor: Color.surface,
     alignItems: 'center',
-    marginBottom: 28,
   },
-  logoRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#0f2044',
-    borderWidth: 2,
-    borderColor: '#1d4ed8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
+  emptyText: {
+    marginTop: 8,
+    color: Color.onSurfaceVariant,
+    fontFamily: 'PlusJakartaSans-Medium',
+    textAlign: 'center',
   },
-  logoEmoji: {
-    fontSize: 32,
-  },
-  appTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#f0f6ff',
-    letterSpacing: -0.5,
-  },
-  appTagline: {
-    marginTop: 6,
-    fontSize: 13,
-    color: '#4a6a9c',
-    letterSpacing: 0.3,
-    fontWeight: '500',
-  },
+  loadMoreBtn: { marginTop: 20, alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, backgroundColor: '#fff', borderWidth: 1, borderColor: '#DDD' },
+  loadMoreText: { color: Color.primary, fontWeight: '600' },
 
-  // Fruit strip
-  fruitStrip: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    gap: 8,
-  },
-  fruitChip: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#0c1428',
-    borderRadius: 14,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: '#1e2d4a',
-  },
-  fruitChipTarget: {
-    backgroundColor: '#0e1e3d',
-    borderColor: '#3b82f6',
-    borderWidth: 2,
-  },
-  fruitChipImage: {
-    width: 44,
-    height: 44,
-    marginBottom: 6,
-  },
-  fruitChipLabel: {
-    fontSize: 11,
-    color: '#4a6a9c',
-    fontWeight: '600',
-  },
-  fruitChipLabelTarget: {
-    color: '#93c5fd',
-  },
-  targetPill: {
-    marginTop: 4,
-    backgroundColor: '#1d4ed8',
-    borderRadius: 99,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  targetPillText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: '#fff',
-    letterSpacing: 0.8,
-  },
-
-  // Rules card
-  rulesCard: {
-    backgroundColor: '#0c1428',
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 28,
-    borderWidth: 1,
-    borderColor: '#1e2d4a',
-  },
-  rulesTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#4a6a9c',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 14,
-  },
-  ruleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-    gap: 10,
-  },
-  ruleIcon: {
-    fontSize: 16,
-    marginTop: 1,
-  },
-  ruleText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#94a3b8',
-    lineHeight: 20,
-    fontWeight: '500',
-  },
-  accent: {
-    color: '#f97316',
-    fontWeight: '700',
-  },
-
-  // Start button
-  buttonWrap: {
-    marginTop: 'auto',
-  },
-  startButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2563eb',
-    paddingVertical: 16,
-    borderRadius: 99,
-    gap: 10,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  startButtonText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#ffffff',
-    letterSpacing: 0.3,
-  },
-  playIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  ctaWrapper: { marginTop: 2 },
+  startBtn: { marginTop: 20, backgroundColor: Color.primary, padding: 18, borderRadius: 20, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  startBtnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  startBtnIcon: { marginLeft: 10, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 15, padding: 5 },
+  bottomSpacer: { height: 28 },
 });

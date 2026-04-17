@@ -1,400 +1,392 @@
-// src/screens/SummaryScreen.js
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  ScrollView,
   Animated,
+  Easing,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Orientation from 'react-native-orientation-locker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Svg, { Circle } from 'react-native-svg';
+import { Color } from '../../assets/images/theme';
+import SummaryStatCard from '../components/summary/SummaryStatCard';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function SummaryScreen() {
   const route = useRoute();
   const navigation = useNavigation();
 
-  const { stats, targetFruit } = route.params || {};
-  const {
-    totalTaps = 0,
-    correctTaps = 0,
-    incorrectTaps = 0,
-    backgroundTaps = 0,
-    accuracy = 0,
-  } = stats || {};
+  const { stats = {}, targetFruit } = route.params || {};
+  const { totalTaps = 0, correctTaps = 0, accuracy = 0, durationMs = 0 } = stats;
 
-  const accuracyPct = (accuracy * 100).toFixed(1);
+  const accuracyPct = Math.round(accuracy * 100);
   const grade = getGrade(accuracy);
 
+  const progressAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    Orientation.unlockAllOrientations();
     Orientation.lockToPortrait();
   }, []);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(32)).current;
-
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.spring(slideAnim, {
-        toValue: 0,
-        friction: 7,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
+    progressAnim.setValue(0);
 
-  const handlePlayAgain = () => {
-    Orientation.lockToLandscape();
-    navigation.replace('Game', { targetFruit: targetFruit || 'Carrot' });
-  };
+    Animated.timing(progressAnim, {
+      toValue: accuracyPct,
+      duration: 3000,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [accuracyPct, progressAnim]);
 
-  const handleGoHome = () => {
-    navigation.popToTop();
-  };
+  const size = 180;
+  const strokeWidth = 18;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const strokeDashoffset = progressAnim.interpolate({
+    inputRange: [0, 100],
+    outputRange: [circumference, 0],
+    extrapolate: 'clamp',
+  });
+
+  const handleViewProgress = () => {
+    navigation.navigate('Tabs', { screen: 'History' });
+  }
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerLabel}>SESSION COMPLETE</Text>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      showsVerticalScrollIndicator={false}>
 
-        <View style={styles.gradeIconWrapper}>
-          <Ionicons
-            name={grade.iconName}
-            size={40}
-            color={grade.iconColor}
-          />
+      {/* HERO */}
+      <View style={styles.hero}>
+        <View style={styles.starWrap}>
+          <Ionicons name="star" size={36} color={Color.primary} />
         </View>
 
-        <Text style={styles.gradeLabel}>{grade.label}</Text>
+        <Text style={styles.heroTitle}>{grade.title}</Text>
+        <Text style={styles.heroSubtitle}>
+          You completed the Fruit Match challenge.
+        </Text>
       </View>
 
-      {/* Stats card */}
-      <Animated.View
-        style={[
-          styles.card,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          },
-        ]}>
-        <Text style={styles.cardTitle}>Your Stats</Text>
+      {/* GRID */}
+      <View style={styles.grid}>
 
-        <StatRow
-          iconName="pricetag-outline"
-          iconColor="#fb923c"
-          label="Target fruit"
-          value={targetFruit || 'Carrot'}
-          valueStyle={styles.accentValue}
-        />
-        <View style={styles.separator} />
+        {/* ACCURACY */}
+        <View style={styles.accuracyCard}>
+          <Text style={styles.accuracyHeading}>Accuracy</Text>
 
-        <StatRow
-          iconName="hand-left-outline"
-          iconColor="#e2e8f0"
-          label="Total taps"
-          value={totalTaps}
-        />
-        <StatRow
-          iconName="checkmark-circle-outline"
-          iconColor="#22c55e"
-          label="Correct taps"
-          value={correctTaps}
-          valueStyle={styles.greenValue}
-        />
-        <StatRow
-          iconName="close-circle-outline"
-          iconColor="#ef4444"
-          label="Incorrect taps"
-          value={incorrectTaps}
-          valueStyle={styles.redValue}
-        />
-        <StatRow
-          iconName="remove-circle-outline"
-          iconColor="#e5e7eb"
-          label="Background taps"
-          value={backgroundTaps}
-        />
+          <View style={styles.ringOuter}>
+            <Svg width={size} height={size}>
+              <Circle
+                stroke={Color.ringBg}
+                fill="none"
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                strokeWidth={strokeWidth}
+              />
 
-        <View style={styles.separator} />
+              <AnimatedCircle
+                stroke={Color.primary}
+                fill="none"
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeDasharray={`${circumference} ${circumference}`}
+                strokeDashoffset={strokeDashoffset}
 
-        {/* Accuracy bar */}
-        <View style={styles.accuracyRow}>
-          <View style={styles.accuracyLeft}>
-            <MaterialCommunityIcons name="bullseye-arrow"
-              size={18}
-              color="#e4e4ff"
-              style={{ marginRight: 8 }}
-            />
-            <Text style={styles.statLabel}>Accuracy</Text>
+                originX={size / 2}
+                originY={size / 2}
+                rotation="-90"
+              />
+            </Svg>
+
+            <View style={styles.ringInner}>
+              <Text style={styles.ringValue}>{accuracyPct}%</Text>
+              <Text style={styles.ringCaption}>{grade.caption}</Text>
+            </View>
           </View>
-          <Text style={[styles.statValue, styles.accuracyValue]}>
-            {accuracyPct}%
-          </Text>
         </View>
 
-        <View style={styles.barTrack}>
-          <Animated.View
-            style={[
-              styles.barFill,
-              {
-                width: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', `${accuracyPct}%`],
-                }),
-                backgroundColor: getAccuracyColor(accuracy),
-              },
-            ]}
-          />
+        {/* RIGHT SIDE */}
+        <View style={styles.rightCol}>
+          <View style={styles.row}>
+            <SummaryStatCard
+              icon={
+                <Ionicons
+                  name="hand-left-outline"
+                  size={22}
+                  color={Color.secondary}
+                />
+              }
+              value={totalTaps}
+              label="Total Taps"
+            />
+
+            <SummaryStatCard
+              icon={
+                <Ionicons
+                  name="checkmark-circle"
+                  size={22}
+                  color={Color.success}
+                />
+              }
+              value={correctTaps}
+              label="Correct Taps"
+            />
+          </View>
+
+          {/* TIME CARD */}
+          <View style={styles.timeCard}>
+            <View style={styles.timeLeft}>
+              <View style={styles.timeIcon}>
+                <Ionicons name="timer-outline" size={20} color={Color.primary} />
+              </View>
+              <View>
+                <Text style={styles.timeLabel}>Time Played</Text>
+                <Text style={styles.timeValue}>
+                  {formatDuration(durationMs)}
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
-      </Animated.View>
+      </View>
 
-      {/* Buttons */}
-      <Animated.View style={[styles.buttonsRow, { opacity: fadeAnim }]}>
-        <TouchableOpacity
-          style={[styles.button, styles.secondaryButton]}
-          onPress={handleGoHome}>
-          <View style={styles.buttonInnerRow}>
-            <Ionicons
-              name="home-outline"
-              size={18}
-              color="#94a3b8"
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.secondaryButtonText}>Home</Text>
-          </View>
-        </TouchableOpacity>
+      {/* BUTTONS */}
+      <TouchableOpacity
+        style={styles.primaryBtn}
+        onPress={() => {
+          Orientation.lockToLandscape();
+          navigation.replace('Game', { targetFruit }); // pass targetFruit back!
+        }}>
+        <Ionicons name="refresh-outline" size={18} color="#fff" />
+        <Text style={styles.primaryText}>Play Again</Text>
+      </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, styles.primaryButton]}
-          onPress={handlePlayAgain}>
-          <View style={styles.buttonInnerRow}>
-            <Ionicons
-              name="play-circle"
-              size={18}
-              color="#ffffff"
-              style={{ marginRight: 6 }}
-            />
-            <Text style={styles.primaryButtonText}>Play Again</Text>
-          </View>
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
+      <TouchableOpacity
+        style={styles.secondaryBtn}
+        onPress={() => {
+          Orientation.lockToPortrait();
+          navigation.navigate('Tabs', { screen: 'Home' });
+        }}>
+        <Ionicons name="home-outline" size={18} color={Color.primary} />
+        <Text style={styles.secondaryText}>Go Home</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.tertiaryBtn} onPress={handleViewProgress}>
+        <Text style={styles.tertiaryText}>See Progress</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
 
-function StatRow({ iconName, iconColor, label, value, valueStyle }) {
-  return (
-    <View style={styles.statRow}>
-      <Ionicons
-        name={iconName}
-        size={18}
-        color={iconColor}
-        style={styles.statIcon}
-      />
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, valueStyle]}>{String(value)}</Text>
-    </View>
-  );
+/* HELPERS */
+function getGrade(a) {
+  if (a >= 0.9) return { title: 'Amazing!', caption: 'Excellent!' };
+  if (a >= 0.75) return { title: 'Great Job!', caption: 'Awesome!' };
+  if (a >= 0.5) return { title: 'Good Effort!', caption: 'Nice try!' };
+  return { title: 'Keep Going!', caption: 'Try again!' };
 }
 
-function getGrade(accuracy) {
-  if (accuracy >= 0.9) {
-    return {
-      iconName: 'trophy-outline',
-      iconColor: '#fbbf24',
-      label: 'Outstanding!',
-    };
-  }
-  if (accuracy >= 0.75) {
-    return {
-      iconName: 'star-outline',
-      iconColor: '#facc15',
-      label: 'Great job!',
-    };
-  }
-  if (accuracy >= 0.5) {
-    return {
-      iconName: 'thumbs-up-outline',
-      iconColor: '#22c55e',
-      label: 'Good effort!',
-    };
-  }
-  return {
-    iconName: 'fitness-outline',
-    iconColor: '#38bdf8',
-    label: 'Keep practising!',
-  };
+function formatDuration(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return `${m}m ${String(s % 60).padStart(2, '0')}s`;
 }
 
-function getAccuracyColor(accuracy) {
-  if (accuracy >= 0.75) return '#22c55e';
-  if (accuracy >= 0.5) return '#f97316';
-  return '#ef4444';
-}
-
+/* STYLES */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#060b1a',
-    paddingHorizontal: 24,
-    paddingTop: 48,
-    paddingBottom: 36,
+    backgroundColor: Color.bg,
+    paddingHorizontal: 20,
+  },
+  tertiaryBtn: {
+    marginTop: 10,
+    alignSelf: 'center',
+    paddingVertical: 8,
+  },
+  tertiaryText: {
+    color: Color.onSurfaceVariant,
+    fontSize: 14,
+    fontFamily: 'PlusJakartaSans-Medium',
+    textDecorationLine: 'underline',
+  },
+  hero: {
+    alignItems: 'center',
+    marginTop: 30,
+    marginBottom: 20,
   },
 
-  header: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  headerLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 2,
-    color: '#4a6a9c',
-    marginBottom: 12,
-  },
-  gradeIconWrapper: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  starWrap: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: Color.surfaceLow,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0b172b',
-    borderWidth: 1,
-    borderColor: '#1f2a3f',
-    marginBottom: 8,
-  },
-  gradeLabel: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#f0f6ff',
-    letterSpacing: -0.3,
-  },
-
-  card: {
-    backgroundColor: '#0c1428',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#1e2d4a',
-    marginBottom: 28,
-  },
-  cardTitle: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#4a6a9c',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
     marginBottom: 16,
   },
-  statRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    gap: 10,
-  },
-  statIcon: {
-    width: 22,
-  },
-  statLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: '#94a3b8',
-    fontWeight: '500',
-  },
-  statValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#e2e8f0',
-  },
-  accentValue: {
-    color: '#f97316',
-  },
-  greenValue: {
-    color: '#22c55e',
-  },
-  redValue: {
-    color: '#ef4444',
+
+  heroTitle: {
+    fontSize: 34,
+    color: Color.primary,
+    fontFamily: 'PlusJakartaSans-Bold',
   },
 
-  accuracyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    justifyContent: 'space-between',
-  },
-  accuracyLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  accuracyValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#e2e8f0',
-  },
-  barTrack: {
-    height: 8,
-    backgroundColor: '#1e2d4a',
-    borderRadius: 99,
-    overflow: 'hidden',
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 99,
-  },
-  separator: {
-    height: 1,
-    backgroundColor: '#1e2d4a',
-    marginVertical: 6,
+  heroSubtitle: {
+    marginTop: 6,
+    fontSize: 16,
+    color: Color.onSurfaceVariant,
+    textAlign: 'center',
   },
 
-  buttonsRow: {
+  grid: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 'auto',
   },
-  button: {
+
+  accuracyCard: {
     flex: 1,
-    paddingVertical: 15,
-    borderRadius: 99,
+    backgroundColor: Color.surface,
+    borderRadius: 20,
+    padding: 16,
     alignItems: 'center',
   },
-  primaryButton: {
-    backgroundColor: '#2563eb',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+
+  accuracyHeading: {
+    fontSize: 16,
+    marginBottom: 16,
+    color: Color.onSurfaceVariant,
+    fontFamily: 'PlusJakartaSans-Bold',
   },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#1e2d4a',
-    backgroundColor: '#0c1428',
+
+  ringOuter: {
+    width: 180,
+    height: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  buttonInnerRow: {
+
+  ringInner: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: Color.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  ringValue: {
+    fontSize: 36,
+    color: Color.primary,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+
+  ringCaption: {
+    fontSize: 14,
+    color: Color.onSurfaceVariant,
+  },
+
+  rightCol: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+
+  timeCard: {
+    marginTop: 12,
+    backgroundColor: Color.ringBg,
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  timeLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  primaryButtonText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#ffffff',
+
+  timeIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: Color.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
-  secondaryButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#94a3b8',
+
+  timeLabel: {
+    fontSize: 12,
+    color: Color.onSurfaceVariant,
+  },
+
+  timeValue: {
+    fontSize: 18,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+
+  fruitBadge: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#111',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  primaryBtn: {
+    marginTop: 30,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Color.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  primaryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'PlusJakartaSans-Bold',
+  },
+
+  secondaryBtn: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: Color.outlineVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  secondaryText: {
+    color: Color.primary,
+    fontSize: 16,
+    fontFamily: 'PlusJakartaSans-Bold',
   },
 });

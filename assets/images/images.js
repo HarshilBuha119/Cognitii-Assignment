@@ -3,4 +3,5 @@ export const Images = {
     Banana: require('./Banana.png'),
     Grape: require('./Grape.png'),
     Carrot: require('./Carrot.png'),
+    Cartoon : require('./Cartoon.jpg'),
 }

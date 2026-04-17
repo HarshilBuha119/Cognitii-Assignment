@@ -1,41 +1,98 @@
-import React, { useEffect } from 'react';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import firestore from '@react-native-firebase/firestore';
+// App.js
+import React from 'react';
+import {StyleSheet} from 'react-native';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
+import {NavigationContainer} from '@react-navigation/native';
+import {createNativeStackNavigator} from '@react-navigation/native-stack';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+
 import HomeScreen from './src/screens/HomeScreen';
 import GameScreen from './src/screens/GameScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
+import HistoryScreen from './src/screens/HistoryScreen';
+import {Color} from './assets/images/theme';
 
-const Stack = createNativeStackNavigator();
-const testFirestore = async () => {
-  try {
-    await firestore().collection('sessions').add({
-      createdAt: firestore.FieldValue.serverTimestamp(),
-      test: true,
-    });
-    console.log('Firestore working');
-  } catch (e) {
-    console.log('Firestore error:', e);
-  }
-};
+const RootStack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+const renderPlayTabIcon = ({color, size}: {color: string; size: number}) => (
+  <Ionicons name="game-controller-outline" size={size} color={color} />
+);
+
+const renderHistoryTabIcon = ({color, size}: {color: string; size: number}) => (
+  <Ionicons name="time-outline" size={size} color={color} />
+);
+
+// Bottom tabs: Play + History only
+function Tabs() {
+  return (
+    <Tab.Navigator
+      initialRouteName="PlayTab"
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarStyle: {
+          height: 72,
+          paddingBottom: 10,
+          paddingTop: 8,
+          backgroundColor: Color.bg,
+          borderTopWidth: 0,
+          elevation: 10,
+          shadowColor: 'rgba(21, 28, 39, 0.15)',
+          shadowOpacity: 0.9,
+          shadowOffset: {width: 0, height: -4},
+          shadowRadius: 16,
+        },
+        tabBarActiveTintColor: Color.primary,
+        tabBarInactiveTintColor: '#A1A1B5',
+        tabBarLabelStyle: {
+          fontFamily: 'PlusJakartaSans-Medium',
+          fontSize: 11,
+        },
+      }}>
+      {/* Simple “Play” launcher tab (shows history but focused on playing) */}
+      <Tab.Screen
+        name="PlayTab"
+        component={HomeScreen}
+        options={{
+          title: 'Play',
+          tabBarIcon: renderPlayTabIcon,
+        }}
+      />
+      {/* History tab using the same screen, but navigation still works */}
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{
+          title: 'History',
+          tabBarIcon: renderHistoryTabIcon,
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 export default function App() {
-  useEffect(() => {
-    testFirestore();
-  }, []);
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <NavigationContainer>
-          <Stack.Navigator initialRouteName="Home">
-            <Stack.Screen options={{ headerShown: false }} name="Home" component={HomeScreen} />
-            <Stack.Screen options={{ headerShown: false }} name="Game" component={GameScreen} />
-            <Stack.Screen options={{ headerShown: false }} name="Summary" component={SummaryScreen} />
-          </Stack.Navigator>
+          <RootStack.Navigator screenOptions={{headerShown: false}}>
+            {/* Tabs (Play / History) */}
+            <RootStack.Screen name="Tabs" component={Tabs} />
+
+            {/* Full-screen game flow, outside tabs */}
+            <RootStack.Screen name="Game" component={GameScreen} />
+            <RootStack.Screen name="Summary" component={SummaryScreen} />
+          </RootStack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {flex: 1},
+});
