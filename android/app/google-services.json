@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "376857162572",
+    "project_id": "metvy-bca36",
+    "storage_bucket": "metvy-bca36.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:376857162572:android:dd295b8e35329adf7895e9",
+        "android_client_info": {
+          "package_name": "com.cognitiigame"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBGohr_GQPueTuwGeqBJqzMKXG105-4LnY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
