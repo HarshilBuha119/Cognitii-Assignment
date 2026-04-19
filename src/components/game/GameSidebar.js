@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Image, ScrollView, Pressable } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { Images } from '../../../assets/images/images';
 import { Color } from '../../../assets/images/theme';
 
-export default function GameSidebar({
+function GameSidebar({
     minutes,
     seconds,
     isWarningTime,
@@ -12,9 +12,27 @@ export default function GameSidebar({
     stats,
     accuracyPct,
     isSaving,
+    sidebarWidth,
+    cameraPermissionDenied,
+    onClosePress,
 }) {
     return (
-        <View style={styles.sidebar}>
+        <View style={[styles.sidebar, sidebarWidth ? { width: sidebarWidth } : null]}>
+            <View style={styles.topRow}>
+                <Text style={styles.topTitle}>Game</Text>
+                <Pressable
+                    onPress={onClosePress}
+                    disabled={isSaving}
+                    hitSlop={12}
+                    style={({pressed}) => [
+                        styles.closeButton,
+                        pressed && !isSaving ? styles.closeButtonPressed : null,
+                        isSaving ? styles.closeButtonDisabled : null,
+                    ]}>
+                    <Ionicons name="close" size={18} color={Color.onSurface} />
+                </Pressable>
+            </View>
+
             <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={styles.sidebarSection}>
                     <Text style={styles.sectionLabel}>TIME</Text>
@@ -76,14 +94,38 @@ export default function GameSidebar({
                         <Text style={styles.savingText}>Saving session...</Text>
                     </View>
                 ) : null}
+
+                {cameraPermissionDenied ? (
+                    <View style={styles.sidebarSection}>
+                        <Text style={styles.cameraNoteText}>Camera permission is off. Gameplay tracking continues.</Text>
+                    </View>
+                ) : null}
             </ScrollView>
         </View>
     );
 }
 
+export default React.memo(GameSidebar, (prev, next) => (
+    prev.minutes === next.minutes &&
+    prev.seconds === next.seconds &&
+    prev.isWarningTime === next.isWarningTime &&
+    prev.targetFruit === next.targetFruit &&
+    prev.accuracyPct === next.accuracyPct &&
+    prev.isSaving === next.isSaving &&
+    prev.sidebarWidth === next.sidebarWidth &&
+    prev.cameraPermissionDenied === next.cameraPermissionDenied &&
+    prev.onClosePress === next.onClosePress &&
+    prev.stats.totalTaps === next.stats.totalTaps &&
+    prev.stats.correctTaps === next.stats.correctTaps &&
+    prev.stats.incorrectTaps === next.stats.incorrectTaps &&
+    prev.stats.backgroundTaps === next.stats.backgroundTaps
+));
+
 const styles = StyleSheet.create({
     sidebar: {
-        width: 132,
+        width: 180,
+        flexGrow: 0,
+        flexShrink: 0,
         paddingVertical: 18,
         paddingHorizontal: 12,
         backgroundColor: Color.surfaceLow,
@@ -93,6 +135,32 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.8,
         shadowOffset: { width: 4, height: 0 },
         shadowRadius: 16,
+    },
+    topRow: {
+        marginBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    topTitle: {
+        fontFamily: 'PlusJakartaSans-Bold',
+        fontSize: 14,
+        color: Color.onSurface,
+    },
+    closeButton: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.75)',
+    },
+    closeButtonPressed: {
+        transform: [{ scale: 0.96 }],
+        opacity: 0.85,
+    },
+    closeButtonDisabled: {
+        opacity: 0.4,
     },
     sidebarSection: {
         marginBottom: 18,
@@ -181,5 +249,12 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: Color.primary,
         textAlign: 'center',
+    },
+    cameraNoteText: {
+        marginTop: 4,
+        textAlign: 'center',
+        color: Color.onSurfaceVariant,
+        fontSize: 11,
+        fontFamily: 'PlusJakartaSans-Regular',
     },
 });

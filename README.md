@@ -1,97 +1,105 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Cognitii React Native Assignment
 
-# Getting Started
+Interactive fruit tapping game built with React Native and Firebase.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Objective Implemented
 
-## Step 1: Start Metro
+- Multiple fruits render together at predefined layout slots every 1 second.
+- Child taps only the selected target fruit.
+- All taps are tracked with coordinates and classification.
+- Session metrics and detailed interaction events are stored in Firestore.
+- Bonus Option A implemented: front camera image capture every 500ms while target fruit is visible.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Tech Stack
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- React Native 0.85.1
+- React 19
+- React Navigation (stack + bottom tabs)
+- Firebase Firestore and Firebase Storage
+- react-native-vision-camera (bonus capture)
+- react-native-orientation-locker
 
-```sh
-# Using npm
-npm start
+## Setup Instructions
 
-# OR using Yarn
-yarn start
-```
+### 1) Install dependencies
 
-## Step 2: Build and run your app
+- npm install
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+### 2) Android setup
 
-### Android
+- Ensure Firebase Android config file exists at android/app/google-services.json
+- Start Metro: npm start
+- Run app: npm run android
 
-```sh
-# Using npm
-npm run android
+### 3) iOS setup
 
-# OR using Yarn
-yarn android
-```
+- Ensure Firebase iOS plist is configured in Xcode project
+- Install pods:
+	- bundle install
+	- bundle exec pod install
+- Start Metro: npm start
+- Run app: npm run ios
 
-### iOS
+## Firebase Notes
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+- Firestore collection used: sessions
+- Storage path for camera captures:
+	- sessions/{sessionId}/camera_{timestamp}.jpg
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+## Firestore Session Schema
 
-```sh
-bundle install
-```
+Each game saves one document in sessions with fields:
 
-Then, and every time you update your native dependencies, run:
+- createdAt: server timestamp
+- sessionId: stable session identifier per game round
+- targetFruit: selected target fruit
+- level: 1
+- durationMs: 120000
+- stats:
+	- totalTaps
+	- correctTaps
+	- incorrectTaps
+	- backgroundTaps
+	- accuracy
+- taps: array of tap events with coordinates and tap type
+- fruitSpawns: array of spawned fruit records with
+	- id, type, isTarget, x, y, visibleAt, disappearedAt
+- cameraCaptures: array of Firebase Storage download URLs
 
-```sh
-bundle exec pod install
-```
+## Assumptions
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+- Level implementation in this assignment is Level 1 only.
+- Fruits remain visible for one interval window, then a fresh batch appears.
+- Four fruit slots are used to match consistent child-friendly spacing from design.
+- If camera permission is denied, gameplay and tap tracking continue; only camera capture is skipped.
 
-```sh
-# Using npm
-npm run ios
+## Key Architecture Decisions
 
-# OR using Yarn
-yarn ios
-```
+- Core game timing constants and fruit generation utilities are isolated in src/utils/gameEngine.js.
+- Camera capture logic is isolated in src/hooks/useTargetFruitCamera.js.
+- Firestore writes are centralized in src/services/firestore.js.
+- Game screen focuses on orchestration: timing, interactions, state updates, and persistence.
+- History uses paginated loading to avoid unbounded reads as data grows.
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+## Performance Decisions
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+- FruitPlayArea and GameSidebar are memoized to reduce unnecessary rerenders.
+- Spawn interval and timer interval are managed via refs with robust cleanup.
+- Tap animation timeout is tracked and cleared on unmount to avoid stale updates.
 
-## Step 3: Modify your app
+## Assignment Deliverables Checklist
 
-Now that you have successfully run the app, let's make changes!
+- GitHub repository: Included
+- README with setup, assumptions, and decisions: Included
+- Screen recording: To be attached separately during submission
+- Submission email: To be sent to souvik@cognitii.com and hello@cognitii.com
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## Troubleshooting
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- If Android build fails after native dependency changes:
+	- cd android
+	- gradlew clean
+	- cd ..
+	- npm run android
+- If Metro cache causes stale bundle:
+	- npm start -- --reset-cache

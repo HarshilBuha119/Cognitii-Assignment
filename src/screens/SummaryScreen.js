@@ -12,6 +12,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import Orientation from 'react-native-orientation-locker';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Svg, { Circle } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Color } from '../../assets/images/theme';
 import SummaryStatCard from '../components/summary/SummaryStatCard';
 
@@ -20,6 +21,7 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 export default function SummaryScreen() {
   const route = useRoute();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   const { stats = {}, targetFruit } = route.params || {};
   const { totalTaps = 0, correctTaps = 0, accuracy = 0, durationMs = 0 } = stats;
@@ -61,8 +63,8 @@ export default function SummaryScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: 40 }}
+      style={[styles.container, { paddingTop: insets.top }]}
+      contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
       showsVerticalScrollIndicator={false}>
 
       {/* HERO */}
@@ -179,7 +181,7 @@ export default function SummaryScreen() {
         style={styles.secondaryBtn}
         onPress={() => {
           Orientation.lockToPortrait();
-          navigation.navigate('Tabs', { screen: 'Home' });
+          navigation.navigate('Tabs', { screen: 'PlayTab' });
         }}>
         <Ionicons name="home-outline" size={18} color={Color.primary} />
         <Text style={styles.secondaryText}>Go Home</Text>

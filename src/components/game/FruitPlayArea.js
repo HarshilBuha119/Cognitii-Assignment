@@ -1,10 +1,48 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {Pressable, Animated, StyleSheet, Image} from 'react-native';
 import {Images} from '../../../assets/images/images';
 import {Color} from '../../../assets/images/theme';
 import {FRUIT_SIZE} from '../../utils/gameEngine';
 
-export default function FruitPlayArea({
+const FruitItem = React.memo(function FruitItem({
+  fruit,
+  isTapped,
+  fruitScaleAnim,
+  onFruitTap,
+}) {
+  const imageSource = Images[fruit.type];
+
+  const wrapperStyle = useMemo(
+    () => [
+      styles.fruitWrapper,
+      {
+        left: fruit.x - FRUIT_SIZE / 2,
+        top: fruit.y - FRUIT_SIZE / 2,
+      },
+    ],
+    [fruit.x, fruit.y],
+  );
+
+  const bubbleStyle = useMemo(
+    () => [
+      styles.fruitBubble,
+      fruit.isTarget && styles.targetGlow,
+      fruit.consumed && styles.consumedFruit,
+      isTapped && {transform: [{scale: fruitScaleAnim}]},
+    ],
+    [fruit.consumed, fruit.isTarget, fruitScaleAnim, isTapped],
+  );
+
+  return (
+    <Pressable style={wrapperStyle} onPress={event => onFruitTap(fruit, event)}>
+      <Animated.View style={bubbleStyle}>
+        <Image source={imageSource} style={styles.fruitImage} resizeMode="contain" />
+      </Animated.View>
+    </Pressable>
+  );
+});
+
+function FruitPlayArea({
   fruits,
   tappedId,
   fruitScaleAnim,
@@ -17,7 +55,7 @@ export default function FruitPlayArea({
     <Pressable
       style={styles.playArea}
       onLayout={onPlayAreaLayout}
-      onPressIn={onBackgroundTap}>
+      onPress={onBackgroundTap}>
       <Animated.View
         pointerEvents="none"
         style={[
@@ -27,36 +65,20 @@ export default function FruitPlayArea({
         ]}
       />
 
-      {fruits.map(fruit => {
-        const isTapped = tappedId === fruit.id;
-        const imageSource = Images[fruit.type];
-
-        return (
-          <Pressable
-            key={fruit.id}
-            style={[
-              styles.fruitWrapper,
-              {
-                left: fruit.x - FRUIT_SIZE / 2,
-                top: fruit.y - FRUIT_SIZE / 2,
-              },
-            ]}
-            onPressIn={event => onFruitTap(fruit, event)}>
-            <Animated.View
-              style={[
-                styles.fruitBubble,
-                fruit.isTarget && styles.targetGlow,
-                fruit.consumed && styles.consumedFruit,
-                isTapped && {transform: [{scale: fruitScaleAnim}]},
-              ]}>
-              <Image source={imageSource} style={styles.fruitImage} resizeMode="contain" />
-            </Animated.View>
-          </Pressable>
-        );
-      })}
+      {fruits.map(fruit => (
+        <FruitItem
+          key={fruit.id}
+          fruit={fruit}
+          isTapped={tappedId === fruit.id}
+          fruitScaleAnim={fruitScaleAnim}
+          onFruitTap={onFruitTap}
+        />
+      ))}
     </Pressable>
   );
 }
+
+export default React.memo(FruitPlayArea);
 
 const styles = StyleSheet.create({
   playArea: {

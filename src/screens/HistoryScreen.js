@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -11,39 +11,77 @@ import firestore from '@react-native-firebase/firestore';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {useFocusEffect} from '@react-navigation/native';
 import Orientation from 'react-native-orientation-locker';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import { Color } from '../../assets/images/theme';
 import SessionHistoryCard from '../components/history/SessionHistoryCard';
 import {mapSessionFromFirestore} from '../utils/sessionData';
 
 
 export default function HistoryScreen() {
+  const PAGE_SIZE = 20;
+  const insets = useSafeAreaInsets();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [hasMore, setHasMore] = useState(true);
 
-  useFocusEffect(() => {
-    Orientation.lockToPortrait();
-  });
+  useFocusEffect(
+    useCallback(() => {
+      Orientation.lockToPortrait();
+    }, []),
+  );
 
   useEffect(() => {
-    const unsub = firestore()
-      .collection('sessions')
-      .orderBy('createdAt', 'desc')
-      .onSnapshot(
-        snapshot => {
-          const data = snapshot.docs.map(doc =>
-            mapSessionFromFirestore(doc.id, doc.data()),
-          );
-          setSessions(data);
-          setLoading(false);
-        },
-        error => {
-          console.log('History sessions error:', error);
-          setLoading(false);
-        },
+    const loadInitial = async () => {
+      try {
+        const snapshot = await firestore()
+          .collection('sessions')
+          .orderBy('createdAt', 'desc')
+          .limit(PAGE_SIZE)
+          .get();
+
+        const data = snapshot.docs.map(doc =>
+          mapSessionFromFirestore(doc.id, doc.data()),
+        );
+
+        setSessions(data);
+        setLastVisible(snapshot.docs.length ? snapshot.docs[snapshot.docs.length - 1] : null);
+        setHasMore(snapshot.docs.length === PAGE_SIZE);
+      } catch (error) {
+        console.log('History sessions error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitial();
+  }, []);
+
+  const loadMoreSessions = useCallback(async () => {
+    if (!hasMore || loadingMore || !lastVisible) return;
+    setLoadingMore(true);
+    try {
+      const snapshot = await firestore()
+        .collection('sessions')
+        .orderBy('createdAt', 'desc')
+        .startAfter(lastVisible)
+        .limit(PAGE_SIZE)
+        .get();
+
+      const nextData = snapshot.docs.map(doc =>
+        mapSessionFromFirestore(doc.id, doc.data()),
       );
 
-    return unsub;
-  }, []);
+      setSessions(prev => [...prev, ...nextData]);
+      setLastVisible(snapshot.docs.length ? snapshot.docs[snapshot.docs.length - 1] : lastVisible);
+      setHasMore(snapshot.docs.length === PAGE_SIZE);
+    } catch (error) {
+      console.log('History load more error:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [hasMore, lastVisible, loadingMore]);
 
   const summary = useMemo(() => {
     if (!sessions.length) {
@@ -116,7 +154,7 @@ export default function HistoryScreen() {
   );
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       <StatusBar backgroundColor={Color.bg} barStyle="dark-content" />
 
       {loading ? (
@@ -128,11 +166,23 @@ export default function HistoryScreen() {
         <FlatList
           data={sessions}
           keyExtractor={item => item.id}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: 28 + insets.bottom },
+          ]}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={renderHeader}
           ListEmptyComponent={renderEmpty}
           renderItem={({item}) => <SessionHistoryCard item={item} />}
+          onEndReached={loadMoreSessions}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator color={Color.primary} />
+              </View>
+            ) : null
+          }
         />
       )}
     </View>
@@ -244,5 +294,9 @@ const styles = StyleSheet.create({
     color: Color.onSurfaceVariant,
     textAlign: 'center',
     fontFamily: 'PlusJakartaSans-Regular',
+  },
+  footerLoader: {
+    paddingVertical: 14,
+    alignItems: 'center',
   },
 });

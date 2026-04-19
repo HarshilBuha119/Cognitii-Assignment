@@ -21,51 +21,82 @@ function isTooClose(candidate, placed, minDistance) {
   });
 }
 
+// export function generateFruits(width, height, targetFruit) {
+//   const count = Math.floor(Math.random() * 3) + 3;
+//   const now = Date.now();
+//   const padding = FRUIT_SIZE * 0.6;
+//   const minDistance = FRUIT_SIZE * 1.15;
+//   const placed = [];
+
+//   const minX = padding;
+//   const maxX = Math.max(minX + 1, width - padding);
+//   const minY = padding;
+//   const maxY = Math.max(minY + 1, height - padding);
+
+//   return Array.from({length: count}).map((_, index) => {
+//     const type = FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
+//     let candidate = null;
+
+//     for (let attempt = 0; attempt < 12; attempt += 1) {
+//       const nextCandidate = {
+//         x: randomInRange(minX, maxX),
+//         y: randomInRange(minY, maxY),
+//       };
+
+//       if (!isTooClose(nextCandidate, placed, minDistance)) {
+//         candidate = nextCandidate;
+//         break;
+//       }
+//     }
+
+//     if (!candidate) {
+//       candidate = {
+//         x: randomInRange(minX, maxX),
+//         y: randomInRange(minY, maxY),
+//       };
+//     }
+
+//     placed.push(candidate);
+
+//     return {
+//       id: `${now}-${index}`,
+//       type,
+//       isTarget: type === targetFruit,
+//       x: candidate.x,
+//       y: candidate.y,
+//       consumed: false,
+//       visibleAt: now,
+//     };
+//   });
+// }
+
 export function generateFruits(width, height, targetFruit) {
-  const count = Math.floor(Math.random() * 3) + 3;
   const now = Date.now();
   const padding = FRUIT_SIZE * 0.6;
-  const minDistance = FRUIT_SIZE * 1.15;
-  const placed = [];
 
-  const minX = padding;
-  const maxX = Math.max(minX + 1, width - padding);
-  const minY = padding;
-  const maxY = Math.max(minY + 1, height - padding);
+  // 4 fixed quadrant positions
+  const fixedPositions = [
+    { x: width * 0.3, y: height * 0.20 }, // top-left
+    { x: width * 0.2, y: height * 0.85 }, // bottom-left
+    { x: width * 0.8, y: height * 0.80 }, // bottom-right
+    { x: width * 0.5, y: height * 0.7 }, // top-right
+  ].map(pos => ({
+    x: Math.min(Math.max(pos.x, padding), width - padding),
+    y: Math.min(Math.max(pos.y, padding), height - padding),
+  }));
 
-  return Array.from({length: count}).map((_, index) => {
-    const type = FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
-    let candidate = null;
+  // Shuffle fruit types so each position gets a different random fruit
+  const shuffledTypes = [...FRUIT_TYPES].sort(() => Math.random() - 0.5);
 
-    for (let attempt = 0; attempt < 12; attempt += 1) {
-      const nextCandidate = {
-        x: randomInRange(minX, maxX),
-        y: randomInRange(minY, maxY),
-      };
-
-      if (!isTooClose(nextCandidate, placed, minDistance)) {
-        candidate = nextCandidate;
-        break;
-      }
-    }
-
-    if (!candidate) {
-      candidate = {
-        x: randomInRange(minX, maxX),
-        y: randomInRange(minY, maxY),
-      };
-    }
-
-    placed.push(candidate);
-
-    return {
-      id: `${now}-${index}`,
-      type,
-      isTarget: type === targetFruit,
-      x: candidate.x,
-      y: candidate.y,
-      consumed: false,
-      visibleAt: now,
-    };
-  });
+  return fixedPositions.map((pos, index) => ({
+    id: `${now}-${index}`,
+    type: shuffledTypes[index],
+    isTarget: shuffledTypes[index] === targetFruit,
+    x: pos.x,
+    y: pos.y,
+    consumed: false,
+    visibleAt: now,
+  }));
 }
+
+
