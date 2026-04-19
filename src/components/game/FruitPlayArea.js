@@ -1,5 +1,5 @@
 import React, {useMemo} from 'react';
-import {Pressable, Animated, StyleSheet, Image} from 'react-native';
+import {Pressable, Animated, StyleSheet, Image, View, Text} from 'react-native';
 import {Images} from '../../../assets/images/images';
 import {Color} from '../../../assets/images/theme';
 import {FRUIT_SIZE} from '../../utils/gameEngine';
@@ -50,12 +50,16 @@ function FruitPlayArea({
   onPlayAreaLayout,
   onBackgroundTap,
   onFruitTap,
+  countdown, // ← new prop
 }) {
+  const isCountingDown = countdown !== null;
+
   return (
     <Pressable
       style={styles.playArea}
       onLayout={onPlayAreaLayout}
-      onPress={onBackgroundTap}>
+      onPress={isCountingDown ? null : onBackgroundTap} // block taps during countdown
+    >
       <Animated.View
         pointerEvents="none"
         style={[
@@ -71,9 +75,23 @@ function FruitPlayArea({
           fruit={fruit}
           isTapped={tappedId === fruit.id}
           fruitScaleAnim={fruitScaleAnim}
-          onFruitTap={onFruitTap}
+          onFruitTap={isCountingDown ? () => {} : onFruitTap}
         />
       ))}
+
+      {/* Countdown overlay — sits inside play area */}
+      {isCountingDown && (
+        <View style={styles.countdownOverlay} pointerEvents="none">
+          <View style={styles.countdownBadge}>
+            <Text style={styles.countdownText}>
+              {countdown === 0 ? 'GO!' : countdown}
+            </Text>
+            {countdown !== 0 && (
+              <Text style={styles.countdownSub}>Get ready...</Text>
+            )}
+          </View>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -125,5 +143,39 @@ const styles = StyleSheet.create({
   fruitImage: {
     width: FRUIT_SIZE * 0.72,
     height: FRUIT_SIZE * 0.72,
+  },
+  countdownOverlay: {
+    top: "25%",
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.82)',
+    borderRadius: 32,
+  },
+  countdownBadge: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Color.primary,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    shadowColor: Color.primary,
+    shadowOpacity: 0.4,
+    shadowOffset: {width: 0, height: 8},
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  countdownText: {
+    fontSize: 72,
+    fontFamily: 'PlusJakartaSans-Bold',
+    color: '#ffffff',
+    lineHeight: 80,
+  },
+  countdownSub: {
+    marginTop: 4,
+    fontSize: 13,
+    fontFamily: 'PlusJakartaSans-Medium',
+    color: 'rgba(255,255,255,0.8)',
   },
 });

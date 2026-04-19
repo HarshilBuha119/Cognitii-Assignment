@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Animated,
   Easing,
+  ActivityIndicator,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import Orientation from 'react-native-orientation-locker';
@@ -23,8 +24,26 @@ export default function SummaryScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  const { stats = {}, targetFruit } = route.params || {};
-  const { totalTaps = 0, correctTaps = 0, accuracy = 0, durationMs = 0 } = stats;
+  // SummaryScreen.js — top of component, replace the existing stats destructuring
+  const {
+    stats = {},
+    targetFruit,
+    saving: initialSaving = false,
+  } = route.params || {};
+  const [isSaving, setIsSaving] = useState(initialSaving);
+
+  // Add this useEffect — clears saving state after 2s (Firestore write is fast)
+  useEffect(() => {
+    if (!initialSaving) return;
+    const t = setTimeout(() => setIsSaving(false), 2000);
+    return () => clearTimeout(t);
+  }, [initialSaving]);
+  const {
+    totalTaps = 0,
+    correctTaps = 0,
+    accuracy = 0,
+    durationMs = 0,
+  } = stats;
 
   const accuracyPct = Math.round(accuracy * 100);
   const grade = getGrade(accuracy);
@@ -59,14 +78,14 @@ export default function SummaryScreen() {
 
   const handleViewProgress = () => {
     navigation.navigate('Tabs', { screen: 'History' });
-  }
+  };
 
   return (
     <ScrollView
       style={[styles.container, { paddingTop: insets.top }]}
       contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
-      showsVerticalScrollIndicator={false}>
-
+      showsVerticalScrollIndicator={false}
+    >
       {/* HERO */}
       <View style={styles.hero}>
         <View style={styles.starWrap}>
@@ -80,99 +99,108 @@ export default function SummaryScreen() {
       </View>
 
       {/* GRID */}
-      <View style={styles.grid}>
-
-        {/* ACCURACY */}
-        <View style={styles.accuracyCard}>
-          <Text style={styles.accuracyHeading}>Accuracy</Text>
-
-          <View style={styles.ringOuter}>
-            <Svg width={size} height={size}>
-              <Circle
-                stroke={Color.ringBg}
-                fill="none"
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                strokeWidth={strokeWidth}
-              />
-
-              <AnimatedCircle
-                stroke={Color.primary}
-                fill="none"
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                strokeWidth={strokeWidth}
-                strokeLinecap="round"
-                strokeDasharray={`${circumference} ${circumference}`}
-                strokeDashoffset={strokeDashoffset}
-
-                originX={size / 2}
-                originY={size / 2}
-                rotation="-90"
-              />
-            </Svg>
-
-            <View style={styles.ringInner}>
-              <Text style={styles.ringValue}>{accuracyPct}%</Text>
-              <Text style={styles.ringCaption}>{grade.caption}</Text>
-            </View>
-          </View>
+      {isSaving ? (
+        <View style={styles.calculatingWrap}>
+          <ActivityIndicator size="large" color={Color.primary} />
+          <Text style={styles.calculatingText}>Calculating results...</Text>
         </View>
+      ) : (
+        <View style={styles.grid}>
+          {/* ACCURACY */}
+          <View style={styles.accuracyCard}>
+            <Text style={styles.accuracyHeading}>Accuracy</Text>
 
-        {/* RIGHT SIDE */}
-        <View style={styles.rightCol}>
-          <View style={styles.row}>
-            <SummaryStatCard
-              icon={
-                <Ionicons
-                  name="hand-left-outline"
-                  size={22}
-                  color={Color.secondary}
+            <View style={styles.ringOuter}>
+              <Svg width={size} height={size}>
+                <Circle
+                  stroke={Color.ringBg}
+                  fill="none"
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  strokeWidth={strokeWidth}
                 />
-              }
-              value={totalTaps}
-              label="Total Taps"
-            />
 
-            <SummaryStatCard
-              icon={
-                <Ionicons
-                  name="checkmark-circle"
-                  size={22}
-                  color={Color.success}
+                <AnimatedCircle
+                  stroke={Color.primary}
+                  fill="none"
+                  cx={size / 2}
+                  cy={size / 2}
+                  r={radius}
+                  strokeWidth={strokeWidth}
+                  strokeLinecap="round"
+                  strokeDasharray={`${circumference} ${circumference}`}
+                  strokeDashoffset={strokeDashoffset}
+                  originX={size / 2}
+                  originY={size / 2}
+                  rotation="-90"
                 />
-              }
-              value={correctTaps}
-              label="Correct Taps"
-            />
-          </View>
+              </Svg>
 
-          {/* TIME CARD */}
-          <View style={styles.timeCard}>
-            <View style={styles.timeLeft}>
-              <View style={styles.timeIcon}>
-                <Ionicons name="timer-outline" size={20} color={Color.primary} />
-              </View>
-              <View>
-                <Text style={styles.timeLabel}>Time Played</Text>
-                <Text style={styles.timeValue}>
-                  {formatDuration(durationMs)}
-                </Text>
+              <View style={styles.ringInner}>
+                <Text style={styles.ringValue}>{accuracyPct}%</Text>
+                <Text style={styles.ringCaption}>{grade.caption}</Text>
               </View>
             </View>
           </View>
-        </View>
-      </View>
 
+          {/* RIGHT SIDE */}
+          <View style={styles.rightCol}>
+            <View style={styles.row}>
+              <SummaryStatCard
+                icon={
+                  <Ionicons
+                    name="hand-left-outline"
+                    size={22}
+                    color={Color.secondary}
+                  />
+                }
+                value={totalTaps}
+                label="Total Taps"
+              />
+
+              <SummaryStatCard
+                icon={
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={22}
+                    color={Color.success}
+                  />
+                }
+                value={correctTaps}
+                label="Correct Taps"
+              />
+            </View>
+
+            {/* TIME CARD */}
+            <View style={styles.timeCard}>
+              <View style={styles.timeLeft}>
+                <View style={styles.timeIcon}>
+                  <Ionicons
+                    name="timer-outline"
+                    size={20}
+                    color={Color.primary}
+                  />
+                </View>
+                <View>
+                  <Text style={styles.timeLabel}>Time Played</Text>
+                  <Text style={styles.timeValue}>
+                    {formatDuration(durationMs)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
       {/* BUTTONS */}
       <TouchableOpacity
         style={styles.primaryBtn}
         onPress={() => {
           Orientation.lockToLandscape();
           navigation.replace('Game', { targetFruit }); // pass targetFruit back!
-        }}>
+        }}
+      >
         <Ionicons name="refresh-outline" size={18} color="#fff" />
         <Text style={styles.primaryText}>Play Again</Text>
       </TouchableOpacity>
@@ -182,7 +210,8 @@ export default function SummaryScreen() {
         onPress={() => {
           Orientation.lockToPortrait();
           navigation.navigate('Tabs', { screen: 'PlayTab' });
-        }}>
+        }}
+      >
         <Ionicons name="home-outline" size={18} color={Color.primary} />
         <Text style={styles.secondaryText}>Go Home</Text>
       </TouchableOpacity>
@@ -254,7 +283,17 @@ const styles = StyleSheet.create({
     color: Color.onSurfaceVariant,
     textAlign: 'center',
   },
-
+  calculatingWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  calculatingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: Color.onSurfaceVariant,
+    fontFamily: 'PlusJakartaSans-Medium',
+  },
   grid: {
     flexDirection: 'row',
     gap: 12,

@@ -15,7 +15,8 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import { Color } from '../../assets/images/theme';
 import SessionHistoryCard from '../components/history/SessionHistoryCard';
 import {mapSessionFromFirestore} from '../utils/sessionData';
-
+import * as VisionCamera from 'react-native-vision-camera';
+console.log('VisionCamera exports:', Object.keys(VisionCamera));
 
 export default function HistoryScreen() {
   const PAGE_SIZE = 20;

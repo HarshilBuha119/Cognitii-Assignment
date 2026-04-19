@@ -1,6 +1,17 @@
-// src/screens/GameScreen.js
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Animated, StatusBar, useWindowDimensions } from 'react-native';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import {
+  View,
+  StyleSheet,
+  Animated,
+  StatusBar,
+  useWindowDimensions,
+} from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Orientation from 'react-native-orientation-locker';
 import { Camera, useCameraPermission } from 'react-native-vision-camera';
@@ -16,6 +27,7 @@ import {
 } from '../utils/gameEngine';
 import { saveGameSession } from '../services/firestore';
 import { useTargetFruitCamera } from '../hooks/useTargetFruitCamera';
+import { clearCameraCache } from '../utils/clearCameraCache';
 
 let hasRequestedCameraPermissionOnce = false;
 
@@ -26,12 +38,15 @@ export default function GameScreen() {
   const insets = useSafeAreaInsets();
 
   const targetFruit = route.params?.targetFruit ?? 'Carrot';
-  // Stable session ID — generated once per mount, used for camera upload path
   const sessionId = useRef(`session_${Date.now()}`).current;
   const { hasPermission, requestPermission } = useCameraPermission();
 
   const sidebarWidth = useMemo(
-    () => Math.max(160, Math.min(220, Math.round(Math.min(windowWidth, windowHeight) * 0.26))),
+    () =>
+      Math.max(
+        160,
+        Math.min(220, Math.round(Math.min(windowWidth, windowHeight) * 0.26)),
+      ),
     [windowWidth, windowHeight],
   );
 
@@ -41,15 +56,20 @@ export default function GameScreen() {
   const [isTargetVisible, setIsTargetVisible] = useState(false);
   const [tappedId, setTappedId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [countdown, setCountdown] = useState(null); // ← ADD THIS
   const [stats, setStats] = useState({
-    totalTaps: 0, correctTaps: 0,
-    incorrectTaps: 0, backgroundTaps: 0, accuracy: 0,
+    totalTaps: 0,
+    correctTaps: 0,
+    incorrectTaps: 0,
+    backgroundTaps: 0,
+    accuracy: 0,
   });
 
   const gameStartedRef = useRef(false);
   const gameEndedRef = useRef(false);
   const timerRef = useRef(null);
   const spawnRef = useRef(null);
+  const countdownRef = useRef(null); // ← ADD THIS
   const prevSizeRef = useRef({ width: 0, height: 0 });
   const tapsRef = useRef([]);
   const fruitSpawnsRef = useRef([]);
@@ -59,13 +79,9 @@ export default function GameScreen() {
   const wrongFlashAnim = useRef(new Animated.Value(0)).current;
   const fruitScaleAnim = useRef(new Animated.Value(1)).current;
 
-  // ─── Camera hook ─────────────────────────────────────────────────────────────
-  const { cameraRef, cameraDevice, capturedImageUrls } = useTargetFruitCamera(
-    isTargetVisible,
-    sessionId,
-  );
+  const { cameraRef, cameraDevice, capturedPhotoPaths } =
+    useTargetFruitCamera(isTargetVisible);
 
-  // Request camera permission once per app runtime.
   useEffect(() => {
     if (!hasPermission && !hasRequestedCameraPermissionOnce) {
       hasRequestedCameraPermissionOnce = true;
@@ -73,7 +89,6 @@ export default function GameScreen() {
     }
   }, [hasPermission, requestPermission]);
 
-  // ─── Orientation ─────────────────────────────────────────────────────────────
   useEffect(() => {
     StatusBar.setHidden(true);
     Orientation.lockToLandscape();
@@ -82,21 +97,23 @@ export default function GameScreen() {
       clearTimeout(t);
       clearIntervals();
       clearTimeout(tappedTimeoutRef.current);
+      clearInterval(countdownRef.current); // ← ADD THIS
       Orientation.unlockAllOrientations();
       StatusBar.setHidden(false);
     };
   }, []);
 
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
   const clearIntervals = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (spawnRef.current) { clearInterval(spawnRef.current); spawnRef.current = null; }
   };
 
   const markOpenSpawnsAsDisappeared = useCallback((timestamp = Date.now()) => {
-    fruitSpawnsRef.current = fruitSpawnsRef.current.map(spawn => (
-      spawn.disappearedAt == null ? { ...spawn, disappearedAt: timestamp } : spawn
-    ));
+    fruitSpawnsRef.current = fruitSpawnsRef.current.map(spawn =>
+      spawn.disappearedAt == null
+        ? { ...spawn, disappearedAt: timestamp }
+        : spawn,
+    );
   }, []);
 
   const triggerWrongFlash = useCallback(() => {
@@ -116,93 +133,124 @@ export default function GameScreen() {
     ]).start();
   }, [fruitScaleAnim]);
 
-  const spawnFruits = useCallback((width, height) => {
-    const now = Date.now();
-    markOpenSpawnsAsDisappeared(now);
-    const generated = buildFruitBatch(width, height, targetFruit);
-    fruitsRef.current = generated;
-    fruitSpawnsRef.current.push(
-      ...generated.map(({ id, type, isTarget, x, y, visibleAt }) => ({
-        id, type, isTarget, x, y, visibleAt, disappearedAt: null,
-      })),
-    );
-    setIsTargetVisible(generated.some(f => f.isTarget && !f.consumed));
-    return generated;
-  }, [markOpenSpawnsAsDisappeared, targetFruit]);
+  const spawnFruits = useCallback(
+    (width, height) => {
+      const now = Date.now();
+      markOpenSpawnsAsDisappeared(now);
+      const generated = buildFruitBatch(width, height, targetFruit);
+      fruitsRef.current = generated;
+      fruitSpawnsRef.current.push(
+        ...generated.map(({ id, type, isTarget, x, y, visibleAt }) => ({
+          id, type, isTarget, x, y, visibleAt, disappearedAt: null,
+        })),
+      );
+      setIsTargetVisible(generated.some(f => f.isTarget && !f.consumed));
+      return generated;
+    },
+    [markOpenSpawnsAsDisappeared, targetFruit],
+  );
 
-  const finalizeSession = useCallback(async ({ endedReason = 'completed', navigateToSummary = false } = {}) => {
-    if (gameEndedRef.current) return;
-    gameEndedRef.current = true;
-    gameStartedRef.current = false;
-    clearIntervals();
-    clearTimeout(tappedTimeoutRef.current);
-    markOpenSpawnsAsDisappeared(Date.now());
-    setIsTargetVisible(false);
+  // ─── actual game start after countdown ───────────────────────────────────────
+  const beginGame = useCallback(
+    (width, height) => {
+      setCountdown(null);
+      setFruits(spawnFruits(width, height));
 
-    const finalStats = {
-      ...stats,
-      durationMs: GAME_DURATION_MS,
-      accuracy: calculateAccuracy(stats.correctTaps, stats.totalTaps),
-    };
+      timerRef.current = setInterval(() => {
+        setTimeLeftMs(prev => {
+          const next = prev - 1000;
+          return next <= 0 ? 0 : next;
+        });
+      }, 1000);
 
-    try {
-      setIsSaving(true);
-      await saveGameSession({
-        sessionId,
-        targetFruit,
-        level: 1,
-        completed: endedReason === 'completed',
-        endedReason,
-        stats: finalStats,
-        taps: tapsRef.current,
-        fruitSpawns: fruitSpawnsRef.current,
-        cameraCaptures: capturedImageUrls.current,
-      });
-    } catch (e) {
-      console.warn('Failed to save session:', e);
-    } finally {
-      setIsSaving(false);
+      spawnRef.current = setInterval(() => {
+        setFruits(spawnFruits(width, height));
+      }, SPAWN_INTERVAL_MS);
+    },
+    [spawnFruits],
+  );
+
+  // ─── Start game with countdown ────────────────────────────────────────────────
+  const startGame = useCallback(
+    (width, height) => {
+      if (gameStartedRef.current) return;
+      gameStartedRef.current = true;
+      gameEndedRef.current = false;
+
+      setTimeLeftMs(GAME_DURATION_MS);
+      setStats({ totalTaps: 0, correctTaps: 0, incorrectTaps: 0, backgroundTaps: 0, accuracy: 0 });
+      tapsRef.current = [];
+      fruitSpawnsRef.current = [];
+      fruitsRef.current = [];
+      setIsTargetVisible(false);
       setFruits([]);
+
+      // Start countdown 3 → 2 → 1 → GO! → begin
+      let count = 3;
+      setCountdown(count);
+
+      countdownRef.current = setInterval(() => {
+        count -= 1;
+        setCountdown(count); // shows 2, 1, 0 ("GO!")
+        if (count <= 0) {
+          clearInterval(countdownRef.current);
+          countdownRef.current = null;
+          // Show GO! for 700ms then start
+          setTimeout(() => beginGame(width, height), 700);
+        }
+      }, 1000);
+    },
+    [beginGame],
+  );
+
+  const finalizeSession = useCallback(
+    async ({ endedReason = 'completed', navigateToSummary = false } = {}) => {
+      if (gameEndedRef.current) return;
+      gameEndedRef.current = true;
+      gameStartedRef.current = false;
+      clearIntervals();
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+      clearTimeout(tappedTimeoutRef.current);
+      markOpenSpawnsAsDisappeared(Date.now());
+      setIsTargetVisible(false);
+      setFruits([]);
+      setCountdown(null);
+
+      const finalStats = {
+        ...stats,
+        durationMs: GAME_DURATION_MS,
+        accuracy: calculateAccuracy(stats.correctTaps, stats.totalTaps),
+      };
+
       if (navigateToSummary) {
-        navigation.replace('Summary', { stats: finalStats, targetFruit });
+        navigation.replace('Summary', { stats: finalStats, targetFruit, saving: true });
       } else {
         navigation.replace('Tabs', { screen: 'PlayTab' });
       }
-    }
-  }, [capturedImageUrls, markOpenSpawnsAsDisappeared, navigation, sessionId, stats, targetFruit]);
 
-  // ─── Start game ──────────────────────────────────────────────────────────────
-  const startGame = useCallback((width, height) => {
-    if (gameStartedRef.current) return;
-    gameStartedRef.current = true;
-    gameEndedRef.current = false;
+      try {
+        await saveGameSession({
+          sessionId, targetFruit, level: 1,
+          completed: endedReason === 'completed',
+          endedReason, stats: finalStats,
+          taps: tapsRef.current,
+          fruitSpawns: fruitSpawnsRef.current,
+          cameraCaptures: capturedPhotoPaths.current,
+        });
+      } catch (e) {
+        console.warn('Failed to save session:', e);
+      } finally {
+        await clearCameraCache(capturedPhotoPaths.current);
+        capturedPhotoPaths.current = [];
+      }
+    },
+    [capturedPhotoPaths, markOpenSpawnsAsDisappeared, navigation, sessionId, stats, targetFruit],
+  );
 
-    setTimeLeftMs(GAME_DURATION_MS);
-    setStats({ totalTaps: 0, correctTaps: 0, incorrectTaps: 0, backgroundTaps: 0, accuracy: 0 });
-    tapsRef.current = [];
-    fruitSpawnsRef.current = [];
-    fruitsRef.current = [];
-    setIsTargetVisible(false);
-
-    setFruits(spawnFruits(width, height));
-
-    timerRef.current = setInterval(() => {
-      setTimeLeftMs(prev => {
-        const next = prev - 1000;
-        return next <= 0 ? 0 : next;
-      });
-    }, 1000);
-
-    spawnRef.current = setInterval(() => {
-      setFruits(spawnFruits(width, height));
-    }, SPAWN_INTERVAL_MS);
-  }, [spawnFruits]);
-
-  // ─── Play area layout ─────────────────────────────────────────────────────────
   useEffect(() => {
     const { width, height } = playAreaSize;
     if (width === 0 || height === 0) return;
-
     const prev = prevSizeRef.current;
     if (Math.abs(prev.width - width) > 50 && gameStartedRef.current) {
       clearIntervals();
@@ -212,11 +260,14 @@ export default function GameScreen() {
     startGame(width, height);
   }, [playAreaSize, startGame]);
 
-  const onPlayAreaLayout = useCallback(({ nativeEvent: { layout: { width, height } } }) => {
-    setPlayAreaSize(prev =>
-      prev.width === width && prev.height === height ? prev : { width, height },
-    );
-  }, []);
+  const onPlayAreaLayout = useCallback(
+    ({ nativeEvent: { layout: { width, height } } }) => {
+      setPlayAreaSize(prev =>
+        prev.width === width && prev.height === height ? prev : { width, height },
+      );
+    },
+    [],
+  );
 
   useEffect(() => {
     if (timeLeftMs !== 0 || gameEndedRef.current) return;
@@ -227,7 +278,6 @@ export default function GameScreen() {
     finalizeSession({ endedReason: 'closed', navigateToSummary: false });
   }, [finalizeSession]);
 
-  // ─── Tap handlers ─────────────────────────────────────────────────────────────
   const updateStats = useCallback(type => {
     setStats(prev => {
       const totalTaps = prev.totalTaps + 1;
@@ -241,46 +291,50 @@ export default function GameScreen() {
     });
   }, []);
 
-  const handleBackgroundTap = useCallback(event => {
-    if (!gameStartedRef.current || gameEndedRef.current) return;
-    const { locationX, locationY, pageX, pageY } = event.nativeEvent;
-    tapsRef.current.push({ timestamp: Date.now(), x: locationX, y: locationY, pageX, pageY, type: 'background' });
-    updateStats('background');
-  }, [updateStats]);
+  const handleBackgroundTap = useCallback(
+    event => {
+      if (!gameStartedRef.current || gameEndedRef.current) return;
+      const { locationX, locationY, pageX, pageY } = event.nativeEvent;
+      tapsRef.current.push({ timestamp: Date.now(), x: locationX, y: locationY, pageX, pageY, type: 'background' });
+      updateStats('background');
+    },
+    [updateStats],
+  );
 
-  const handleFruitTap = useCallback((fruit, event) => {
-    if (!gameStartedRef.current || gameEndedRef.current) return;
-    event.stopPropagation();
-    const currentFruits = fruitsRef.current;
-    const target = currentFruits.find(f => f.id === fruit.id);
-    if (!target || target.consumed) return;
+  const handleFruitTap = useCallback(
+    (fruit, event) => {
+      if (!gameStartedRef.current || gameEndedRef.current) return;
+      event.stopPropagation();
+      const currentFruits = fruitsRef.current;
+      const target = currentFruits.find(f => f.id === fruit.id);
+      if (!target || target.consumed) return;
 
-    const nextFruits = currentFruits.map(f => (
-      f.id === fruit.id ? { ...f, consumed: true } : f
-    ));
-    fruitsRef.current = nextFruits;
-    setFruits(nextFruits);
-    setIsTargetVisible(nextFruits.some(f => f.isTarget && !f.consumed));
+      const nextFruits = currentFruits.map(f =>
+        f.id === fruit.id ? { ...f, consumed: true } : f,
+      );
+      fruitsRef.current = nextFruits;
+      setFruits(nextFruits);
+      setIsTargetVisible(nextFruits.some(f => f.isTarget && !f.consumed));
 
-    const { locationX, locationY, pageX, pageY } = event.nativeEvent;
-    const tapType = fruit.isTarget ? 'correct' : 'incorrect';
-    tapsRef.current.push({
-      timestamp: Date.now(),
-      x: fruit.x, y: fruit.y,
-      tapX: locationX, tapY: locationY,
-      pageX, pageY,
-      type: tapType, fruitId: fruit.id,
-      fruitType: fruit.type, isTarget: fruit.isTarget,
-    });
-    setTappedId(fruit.id);
-    triggerFruitBounce();
-    if (!fruit.isTarget) triggerWrongFlash();
-    updateStats(tapType);
-    clearTimeout(tappedTimeoutRef.current);
-    tappedTimeoutRef.current = setTimeout(() => setTappedId(null), 250);
-  }, [triggerFruitBounce, triggerWrongFlash, updateStats]);
+      const { locationX, locationY, pageX, pageY } = event.nativeEvent;
+      const tapType = fruit.isTarget ? 'correct' : 'incorrect';
+      tapsRef.current.push({
+        timestamp: Date.now(),
+        x: fruit.x, y: fruit.y,
+        tapX: locationX, tapY: locationY,
+        pageX, pageY, type: tapType,
+        fruitId: fruit.id, fruitType: fruit.type, isTarget: fruit.isTarget,
+      });
+      setTappedId(fruit.id);
+      triggerFruitBounce();
+      if (!fruit.isTarget) triggerWrongFlash();
+      updateStats(tapType);
+      clearTimeout(tappedTimeoutRef.current);
+      tappedTimeoutRef.current = setTimeout(() => setTappedId(null), 250);
+    },
+    [triggerFruitBounce, triggerWrongFlash, updateStats],
+  );
 
-  // ─── Derived display values ───────────────────────────────────────────────────
   const totalSeconds = Math.floor(timeLeftMs / 1000);
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
   const seconds = String(totalSeconds % 60).padStart(2, '0');
@@ -289,17 +343,15 @@ export default function GameScreen() {
 
   return (
     <View style={[styles.root, { paddingLeft: insets.left, paddingRight: insets.right }]}>
-      {/* Hidden front camera — only active when target is visible */}
       {cameraDevice && hasPermission && (
         <Camera
           ref={cameraRef}
           style={styles.hiddenCamera}
           device={cameraDevice}
-          isActive={isTargetVisible && hasPermission}
-          photo
+          isActive={true}
+          photo={true}
         />
       )}
-
       <GameSidebar
         minutes={minutes}
         seconds={seconds}
@@ -320,6 +372,7 @@ export default function GameScreen() {
         onPlayAreaLayout={onPlayAreaLayout}
         onBackgroundTap={handleBackgroundTap}
         onFruitTap={handleFruitTap}
+        countdown={countdown}
       />
     </View>
   );
@@ -331,12 +384,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: Color.bg,
   },
-  // 1×1 off-screen — invisible but Camera must be mounted to use takePhoto()
   hiddenCamera: {
     width: 1,
     height: 1,
     position: 'absolute',
-    top: -1,
-    left: -1,
+    top: 0,
+    left: 0,
+    opacity: 0,
   },
 });

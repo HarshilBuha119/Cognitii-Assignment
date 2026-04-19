@@ -1,4 +1,4 @@
-export const GAME_DURATION_MS = 2 * 60 * 1000;
+export const GAME_DURATION_MS = 0.2 * 60 * 1000;
 export const SPAWN_INTERVAL_MS = 1000;
 export const FRUIT_SIZE = 84;
 
@@ -70,23 +70,66 @@ function isTooClose(candidate, placed, minDistance) {
 //   });
 // }
 
+// src/utils/gameEngine.js — replace generateFruits entirely
+
+const lastPositionMap = {};
+
+function fisherYatesShuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export function generateFruits(width, height, targetFruit) {
   const now = Date.now();
   const padding = FRUIT_SIZE * 0.6;
 
-  // 4 fixed quadrant positions
   const fixedPositions = [
-    { x: width * 0.3, y: height * 0.20 }, // top-left
-    { x: width * 0.2, y: height * 0.85 }, // bottom-left
-    { x: width * 0.8, y: height * 0.80 }, // bottom-right
-    { x: width * 0.5, y: height * 0.7 }, // top-right
+    { x: width * 0.3, y: height * 0.2 },
+    { x: width * 0.2, y: height * 0.85 },
+    { x: width * 0.8, y: height * 0.8 },
+    { x: width * 0.5, y: height * 0.7 },
   ].map(pos => ({
     x: Math.min(Math.max(pos.x, padding), width - padding),
     y: Math.min(Math.max(pos.y, padding), height - padding),
   }));
 
-  // Shuffle fruit types so each position gets a different random fruit
-  const shuffledTypes = [...FRUIT_TYPES].sort(() => Math.random() - 0.5);
+  // Proper unbiased shuffle
+  let shuffledTypes = fisherYatesShuffle(FRUIT_TYPES);
+
+  // Guarantee no fruit lands in the same slot as last round
+  for (let pass = 0; pass < 10; pass++) {
+    let dirty = false;
+    for (let i = 0; i < shuffledTypes.length; i++) {
+      if (lastPositionMap[shuffledTypes[i]] !== i) continue;
+      const j = shuffledTypes.findIndex(
+        (other, k) =>
+          k !== i &&
+          lastPositionMap[shuffledTypes[i]] !== k &&
+          lastPositionMap[other] !== i,
+      );
+      if (j !== -1) {
+        [shuffledTypes[i], shuffledTypes[j]] = [
+          shuffledTypes[j],
+          shuffledTypes[i],
+        ];
+        dirty = true;
+        break;
+      }
+    }
+    if (!dirty) break;
+  }
+
+  // Save positions for next round
+  shuffledTypes.forEach((fruit, i) => {
+    lastPositionMap[fruit] = i;
+  });
+
+  // Also delete old dead code at top of file:
+  // randomInRange, isTooClose, and the commented-out old generateFruits
 
   return fixedPositions.map((pos, index) => ({
     id: `${now}-${index}`,
@@ -98,5 +141,3 @@ export function generateFruits(width, height, targetFruit) {
     visibleAt: now,
   }));
 }
-
-

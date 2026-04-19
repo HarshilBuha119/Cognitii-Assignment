@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
         width: '22%',
         alignItems: 'center',
         padding: 10,
-        borderRadius: 100,
+        borderRadius: "100%",
         backgroundColor: Color.surface,
     },
     fruitChipActive: {

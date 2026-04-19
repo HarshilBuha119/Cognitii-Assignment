@@ -126,7 +126,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <AccuracyTrendsCard chartData={chartData} avgAccuracy={avgAccuracy} />
+        <AccuracyTrendsCard loading={loadingSessions} chartData={chartData} avgAccuracy={avgAccuracy} />
 
         <FruitSelector targetFruit={targetFruit} onSelect={setTargetFruit} />
 
