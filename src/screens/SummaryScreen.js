@@ -24,7 +24,6 @@ export default function SummaryScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
-  // SummaryScreen.js — top of component, replace the existing stats destructuring
   const {
     stats = {},
     targetFruit,
@@ -32,7 +31,6 @@ export default function SummaryScreen() {
   } = route.params || {};
   const [isSaving, setIsSaving] = useState(initialSaving);
 
-  // Add this useEffect — clears saving state after 2s (Firestore write is fast)
   useEffect(() => {
     if (!initialSaving) return;
     const t = setTimeout(() => setIsSaving(false), 2000);
@@ -86,7 +84,6 @@ export default function SummaryScreen() {
       contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
       showsVerticalScrollIndicator={false}
     >
-      {/* HERO */}
       <View style={styles.hero}>
         <View style={styles.starWrap}>
           <Ionicons name="star" size={36} color={Color.primary} />
@@ -98,7 +95,6 @@ export default function SummaryScreen() {
         </Text>
       </View>
 
-      {/* GRID */}
       {isSaving ? (
         <View style={styles.calculatingWrap}>
           <ActivityIndicator size="large" color={Color.primary} />
@@ -106,7 +102,6 @@ export default function SummaryScreen() {
         </View>
       ) : (
         <View style={styles.grid}>
-          {/* ACCURACY */}
           <View style={styles.accuracyCard}>
             <Text style={styles.accuracyHeading}>Accuracy</Text>
 
@@ -144,7 +139,6 @@ export default function SummaryScreen() {
             </View>
           </View>
 
-          {/* RIGHT SIDE */}
           <View style={styles.rightCol}>
             <View style={styles.row}>
               <SummaryStatCard
@@ -193,12 +187,11 @@ export default function SummaryScreen() {
           </View>
         </View>
       )}
-      {/* BUTTONS */}
       <TouchableOpacity
         style={styles.primaryBtn}
         onPress={() => {
           Orientation.lockToLandscape();
-          navigation.replace('Game', { targetFruit }); // pass targetFruit back!
+          navigation.replace('Game', { targetFruit });
         }}
       >
         <Ionicons name="refresh-outline" size={18} color="#fff" />
@@ -223,7 +216,6 @@ export default function SummaryScreen() {
   );
 }
 
-/* HELPERS */
 function getGrade(a) {
   if (a >= 0.9) return { title: 'Amazing!', caption: 'Excellent!' };
   if (a >= 0.75) return { title: 'Great Job!', caption: 'Awesome!' };
@@ -237,7 +229,6 @@ function formatDuration(ms) {
   return `${m}m ${String(s % 60).padStart(2, '0')}s`;
 }
 
-/* STYLES */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
