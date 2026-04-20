@@ -1,98 +1,156 @@
-# Cognitii React Native Assignment
+# CognitiiGame
 
-Interactive fruit tapping game built with React Native and Firebase.
+A React Native fruit-tapping game built for the Cognitii assignment. Children are shown multiple fruits on screen and instructed to tap only the target fruit. The app tracks every interaction and saves session data to Firebase Firestore.
 
-## Objective Implemented
+---
 
-- Multiple fruits render together at predefined layout slots every 1 second.
-- Child taps only the selected target fruit.
-- All taps are tracked with coordinates and classification.
-- Session metrics and detailed interaction events are stored in Firestore.
-- Bonus Option A implemented: front camera image capture every 500ms while target fruit is visible.
+## Prerequisites
 
-## Tech Stack
+- Node.js >= 18
+- React Native CLI environment (not Expo)
+- Android Studio with an emulator or physical Android device
+- JDK 17
 
-- React Native 0.85.1
-- React 19
-- React Navigation (stack + bottom tabs)
-- Firebase Firestore and Firebase Storage
-- react-native-vision-camera (bonus capture)
-- react-native-orientation-locker
 
-## Setup Instructions
+---
 
-### 1) Install dependencies
+## Setup
 
-- npm install
+**1. Clone and install dependencies**
 
-### 2) Android setup
+```bash
+git clone <repo-url>
+cd Metvy-Assignment-main
+yarn install
+```
 
-- Ensure Firebase Android config file exists at android/app/google-services.json
-- Start Metro: npm start
-- Run app: npm run android
+**2. Firebase**
 
-### 3) iOS setup
+The project is already connected to a Firebase project (`metvy-6ec37`). The `google-services.json` is included in `android/app/`. If you want to use your own Firebase project:
 
-- Ensure Firebase iOS plist is configured in Xcode project
-- Install pods:
-	- bundle install
-	- bundle exec pod install
-- Start Metro: npm start
-- Run app: npm run ios
+- Replace `android/app/google-services.json` with your own
+- Enable **Firestore** in your Firebase console
+- 
+---
 
-## Firebase Notes
+## Running the App
 
-- Firestore collection used: sessions
-- Storage path for camera captures:
-	- sessions/{sessionId}/camera_{timestamp}.jpg
+**Android**
+```bash
+yarn android
+```
 
-## Firestore Session Schema
+**Metro bundler (if not started automatically)**
+```bash
+yarn start
+```
 
-Each game saves one document in sessions with fields:
+---
 
-- createdAt: server timestamp
-- sessionId: stable session identifier per game round
-- targetFruit: selected target fruit
-- level: 1
-- durationMs: 120000
-- stats:
-	- totalTaps
-	- correctTaps
-	- incorrectTaps
-	- backgroundTaps
-	- accuracy
-- taps: array of tap events with coordinates and tap type
-- fruitSpawns: array of spawned fruit records with
-	- id, type, isTarget, x, y, visibleAt, disappearedAt
-- cameraCaptures: array of Firebase Storage download URLs
+## How It Works
+
+### Screens
+
+| Screen | Description |
+|---|---|
+| **Home** | Select target fruit, view accuracy trends and recent sessions, tap Start Game |
+| **Game** | The main tapping game — runs for 2 minutes in landscape |
+| **Summary** | Shows accuracy, correct/incorrect/background taps after a session |
+| **History** | Full list of past sessions with per-session stats |
+
+### Game Mechanics
+
+- The game runs for **2 minutes** in landscape orientation.
+- Four fruits (Apple, Banana, Grape, Carrot) appear at fixed positions each second.
+- Each round shuffles which fruit appears in which slot, with no fruit repeating the same slot consecutively.
+- One fruit is the designated **target fruit** (selected on Home screen).
+- A **3-2-1-GO!** countdown plays before the game starts.
+
+### Tap Tracking
+
+Every tap is categorised and recorded:
+
+- **Correct** — tapped the target fruit
+- **Incorrect** — tapped the wrong fruit
+- **Background** — tapped empty space
+
+### Camera (Bonus — Option A)
+
+When the target fruit is visible on screen, the front camera captures a photo every **500ms** using `react-native-vision-camera`. Photos are saved to the device cache during the session. Once the session ends, the local file paths are stored in Firestore under `cameraCaptures`, and the cached files are then deleted from the device. Camera permission is requested on first launch. The camera preview is hidden (1×1px off-screen).
+
+---
+
+## Firestore Schema
+
+Each session is stored as a document in the `sessions` collection:
+
+```
+sessions/{auto-id}
+├── sessionId        string     — unique ID for the session (session_<timestamp>)
+├── createdAt        timestamp  — server timestamp
+├── targetFruit      string     — e.g. "Carrot"
+├── level            number     — 1 (Level 1 only for now)
+├── completed        boolean    — true if timer ran out, false if closed early
+├── endedReason      string     — "completed" | "closed"
+├── durationMs       number     — 120000 (2 minutes)
+├── stats
+│   ├── totalTaps      number
+│   ├── correctTaps    number
+│   ├── incorrectTaps  number
+│   ├── backgroundTaps number
+│   └── accuracy       number   — 0.0–1.0
+├── taps             array
+│   └── { timestamp, x, y, tapX, tapY, pageX, pageY, type, fruitId, fruitType, isTarget }
+├── fruitSpawns      array
+│   └── { id, type, isTarget, x, y, visibleAt, disappearedAt }
+└── cameraCaptures   array      — local file paths of front-camera photos
+```
+
+---
+
+## Project Structure
+
+```
+src/
+├── screens/
+│   ├── HomeScreen.js
+│   ├── GameScreen.js
+│   ├── SummaryScreen.js
+│   └── HistoryScreen.js
+├── components/
+│   ├── game/         FruitPlayArea, GameSidebar
+│   ├── home/         AccuracyTrendsCard, FruitSelector, HomeTopBar, RecentSessionCard
+│   ├── history/      SessionHistoryCard, MetricPill
+│   └── summary/      SummaryStatCard
+├── hooks/
+│   └── useTargetFruitCamera.js
+├── services/
+│   └── firestore.js
+└── utils/
+    ├── gameEngine.js   — fruit generation, game constants, accuracy calc
+    ├── sessionData.js  — Firestore data mapping, chart data helpers
+    └── clearCameraCache.js
+assets/
+├── images/   Apple.png, Banana.png, Carrot.png, Grape.png
+└── fonts/    Fredoka, PlusJakartaSans, AnticDidone, Tapestry
+```
+
+---
 
 ## Assumptions
 
-- Level implementation in this assignment is Level 1 only.
-- Fruits remain visible for one interval window, then a fresh batch appears.
-- Four fruit slots are used to match consistent child-friendly spacing from design.
-- If camera permission is denied, gameplay and tap tracking continue; only camera capture is skipped.
+- Level 1 only — fruits stay on screen for 1 second before the next batch spawns.
+- Four fruits always appear simultaneously (one per fixed position slot).
+- Camera captures are taken during gameplay, stored temporarily in device cache, and their local paths are saved to Firestore. The cache is cleared after each session. No upload to Firebase Storage occurs — `@react-native-firebase/storage` is installed but not used.
+- The app does not require authentication; all sessions are saved anonymously.
 
-## Key Architecture Decisions
+---
 
-- Core game timing constants and fruit generation utilities are isolated in src/utils/gameEngine.js.
-- Camera capture logic is isolated in src/hooks/useTargetFruitCamera.js.
-- Firestore writes are centralized in src/services/firestore.js.
-- Game screen focuses on orchestration: timing, interactions, state updates, and persistence.
-- History uses paginated loading to avoid unbounded reads as data grows.
+## Tech Decisions
 
-## Performance Decisions
-
-- FruitPlayArea and GameSidebar are memoized to reduce unnecessary rerenders.
-- Spawn interval and timer interval are managed via refs with robust cleanup.
-- Tap animation timeout is tracked and cleared on unmount to avoid stale updates.
-
-## Troubleshooting
-
-- If Android build fails after native dependency changes:
-	- cd android
-	- gradlew clean
-	- cd ..
-	- npm run android
-- If Metro cache causes stale bundle:
-	- npm start -- --reset-cache
+- **react-native-vision-camera** for front-camera captures — chosen for its reliable `takePhoto` API and active maintenance.
+- **@react-native-firebase/firestore** for real-time data — direct SDK, no backend needed.
+- **react-native-reanimated** for smooth fruit bounce.
+- **react-native-orientation-locker** to enforce portrait on Home/History and landscape during gameplay.
+- **react-native-gifted-charts** for the accuracy trend bar chart on the Home screen.
+- Fruit positions use fixed proportional slots rather than fully random coordinates so fruits never overlap and are comfortably tappable for children.
