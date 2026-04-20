@@ -56,7 +56,7 @@ export default function GameScreen() {
   const [isTargetVisible, setIsTargetVisible] = useState(false);
   const [tappedId, setTappedId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [countdown, setCountdown] = useState(null); // ← ADD THIS
+  const [countdown, setCountdown] = useState(null);
   const [stats, setStats] = useState({
     totalTaps: 0,
     correctTaps: 0,
@@ -69,7 +69,7 @@ export default function GameScreen() {
   const gameEndedRef = useRef(false);
   const timerRef = useRef(null);
   const spawnRef = useRef(null);
-  const countdownRef = useRef(null); // ← ADD THIS
+  const countdownRef = useRef(null); 
   const prevSizeRef = useRef({ width: 0, height: 0 });
   const tapsRef = useRef([]);
   const fruitSpawnsRef = useRef([]);
@@ -97,7 +97,7 @@ export default function GameScreen() {
       clearTimeout(t);
       clearIntervals();
       clearTimeout(tappedTimeoutRef.current);
-      clearInterval(countdownRef.current); // ← ADD THIS
+      clearInterval(countdownRef.current); 
       Orientation.unlockAllOrientations();
       StatusBar.setHidden(false);
     };
