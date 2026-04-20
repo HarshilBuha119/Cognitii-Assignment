@@ -1,4 +1,3 @@
-// src/screens/HomeScreen.js
 import React, {
   useCallback,
   useEffect,
@@ -188,7 +187,6 @@ export default function HomeScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Color.bg },
   scroll: { flex: 1 },
