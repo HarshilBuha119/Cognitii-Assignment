@@ -1,4 +1,3 @@
-// App.js
 import React from 'react';
 import {StyleSheet} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -25,7 +24,6 @@ const renderHistoryTabIcon = ({color, size}: {color: string; size: number}) => (
   <Ionicons name="time-outline" size={size} color={color} />
 );
 
-// Bottom tabs: Play + History only
 function Tabs() {
   return (
     <Tab.Navigator
@@ -54,7 +52,6 @@ function Tabs() {
           fontSize: 11,
         },
       }}>
-      {/* Simple “Play” launcher tab (shows history but focused on playing) */}
       <Tab.Screen
         name="PlayTab"
         component={HomeScreen}
@@ -63,7 +60,6 @@ function Tabs() {
           tabBarIcon: renderPlayTabIcon,
         }}
       />
-      {/* History tab using the same screen, but navigation still works */}
       <Tab.Screen
         name="History"
         component={HistoryScreen}
