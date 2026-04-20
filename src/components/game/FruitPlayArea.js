@@ -11,7 +11,6 @@ const FruitItem = React.memo(function FruitItem({
   onFruitTap,
 }) {
   const imageSource = Images[fruit.type];
-
   const wrapperStyle = useMemo(
     () => [
       styles.fruitWrapper,
