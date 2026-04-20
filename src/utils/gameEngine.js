@@ -1,4 +1,4 @@
-export const GAME_DURATION_MS = 0.2 * 60 * 1000;
+export const GAME_DURATION_MS = 2 * 60 * 1000;
 export const SPAWN_INTERVAL_MS = 1000;
 export const FRUIT_SIZE = 84;
 
