@@ -24,14 +24,12 @@ export default function AccuracyTrendsCard({
       </View>
 
       <View style={styles.chartContainer}>
-        {/* 🔄 LOADING STATE */}
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={Color.primary} />
             <Text style={styles.loadingText}>Loading sessions...</Text>
           </View>
         ) : chartData.length === 0 ? (
-          /* 📭 EMPTY STATE */
           <View style={styles.emptyChart}>
             <Ionicons
               name="bar-chart-outline"
@@ -44,7 +42,6 @@ export default function AccuracyTrendsCard({
             </Text>
           </View>
         ) : (
-          /* 📊 CHART */
           <BarChart
             data={chartData}
             barWidth={28}
