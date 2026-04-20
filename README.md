@@ -87,13 +87,6 @@ Each game saves one document in sessions with fields:
 - Spawn interval and timer interval are managed via refs with robust cleanup.
 - Tap animation timeout is tracked and cleared on unmount to avoid stale updates.
 
-## Assignment Deliverables Checklist
-
-- GitHub repository: Included
-- README with setup, assumptions, and decisions: Included
-- Screen recording: To be attached separately during submission
-- Submission email: To be sent to souvik@cognitii.com and hello@cognitii.com
-
 ## Troubleshooting
 
 - If Android build fails after native dependency changes:
