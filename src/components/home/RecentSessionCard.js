@@ -62,11 +62,11 @@ const styles = StyleSheet.create({
   card: {
     marginTop: 12,
     padding: 16,
-    borderRadius: 16, // IMPORTANT (was wrong before)
-    backgroundColor: Color.surface, // exact from design
+    borderRadius: 16,
+    backgroundColor: Color.surface, 
 
     borderWidth: 1,
-    borderColor: Color.outlineVariant + '20', // very light border
+    borderColor: Color.outlineVariant + '20',
 
     shadowColor: Color.shadow,
     shadowOpacity: 0.06,
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
 
   accuracy: {
-    fontSize: 24, // FIXED (was too big)
+    fontSize: 24, 
     fontFamily: 'PlusJakartaSans-Bold',
   },
 
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 16,
-    backgroundColor: Color.surfaceBright, // NOT pure white
+    backgroundColor: Color.surfaceBright,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 18, // matches text-lg
+    fontSize: 18,
     fontFamily: 'PlusJakartaSans-Bold',
     color: Color.onSurface,
   },
