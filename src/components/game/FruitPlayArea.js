@@ -50,7 +50,7 @@ function FruitPlayArea({
   onPlayAreaLayout,
   onBackgroundTap,
   onFruitTap,
-  countdown, // ← new prop
+  countdown,
 }) {
   const isCountingDown = countdown !== null;
 
@@ -58,7 +58,7 @@ function FruitPlayArea({
     <Pressable
       style={styles.playArea}
       onLayout={onPlayAreaLayout}
-      onPress={isCountingDown ? null : onBackgroundTap} // block taps during countdown
+      onPress={isCountingDown ? null : onBackgroundTap}
     >
       <Animated.View
         pointerEvents="none"
@@ -79,7 +79,6 @@ function FruitPlayArea({
         />
       ))}
 
-      {/* Countdown overlay — sits inside play area */}
       {isCountingDown && (
         <View style={styles.countdownOverlay} pointerEvents="none">
           <View style={styles.countdownBadge}>
