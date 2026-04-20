@@ -70,7 +70,6 @@ function isTooClose(candidate, placed, minDistance) {
 //   });
 // }
 
-// src/utils/gameEngine.js — replace generateFruits entirely
 
 const lastPositionMap = {};
 
@@ -127,9 +126,6 @@ export function generateFruits(width, height, targetFruit) {
   shuffledTypes.forEach((fruit, i) => {
     lastPositionMap[fruit] = i;
   });
-
-  // Also delete old dead code at top of file:
-  // randomInRange, isTooClose, and the commented-out old generateFruits
 
   return fixedPositions.map((pos, index) => ({
     id: `${now}-${index}`,
