@@ -78,10 +78,7 @@ export default function App() {
       <SafeAreaProvider>
         <NavigationContainer>
           <RootStack.Navigator screenOptions={{headerShown: false}}>
-            {/* Tabs (Play / History) */}
             <RootStack.Screen name="Tabs" component={Tabs} />
-
-            {/* Full-screen game flow, outside tabs */}
             <RootStack.Screen name="Game" component={GameScreen} />
             <RootStack.Screen name="Summary" component={SummaryScreen} />
           </RootStack.Navigator>
